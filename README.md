@@ -319,3 +319,6 @@ No changes needed to the local app, background script, or Discord bot.
 
 - **Title detection**: Currently uses `document.title` which can be inaccurate (includes site name, may not update for all content). Should be replaced with per-provider DOM scraping from the actual title element on the page.
 - **PotPlayer support**: Planned for a future phase (WM_COMMAND via PowerShell helper + window title parsing for position).
+
+## Invite Link
+https://discord.com/oauth2/authorize?client_id=<client_id>&scope=bot+applications.commands&permissions=346112
