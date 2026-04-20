@@ -82,6 +82,10 @@ export function buildButtonRow(): ActionRowBuilder<ButtonBuilder> {
       .setLabel('10s ⏩')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
+      .setCustomId('switch_source')
+      .setLabel('🔀')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
       .setCustomId('end_session')
       .setLabel('🛑 End')
       .setStyle(ButtonStyle.Danger),

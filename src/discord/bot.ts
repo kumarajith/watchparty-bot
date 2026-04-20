@@ -238,6 +238,11 @@ export class DiscordBot {
   }
 
   private async cmdSource(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (config.streamerUserId && interaction.user.id !== config.streamerUserId) {
+      await interaction.reply({ content: 'Only the streamer can switch sources.', ephemeral: true });
+      return;
+    }
+
     const sessions = await this.orchestrator.discoverAll();
     if (sessions.length === 0) {
       await interaction.reply({ content: 'No active sources found.', ephemeral: true });
@@ -278,6 +283,12 @@ export class DiscordBot {
   private async handleButton(interaction: ButtonInteraction): Promise<void> {
     if (!this.session) {
       await interaction.reply({ content: 'No active session.', ephemeral: true });
+      return;
+    }
+
+    // Switch source needs its own flow (ephemeral reply with select menu)
+    if (interaction.customId === 'switch_source') {
+      await this.handleSwitchSource(interaction);
       return;
     }
 
@@ -324,6 +335,52 @@ export class DiscordBot {
     // Brief delay for state propagation, then refresh
     await delay(200);
     await this.refreshEmbed();
+  }
+
+  private async handleSwitchSource(interaction: ButtonInteraction): Promise<void> {
+    if (config.streamerUserId && interaction.user.id !== config.streamerUserId) {
+      await interaction.reply({ content: 'Only the streamer can switch sources.', ephemeral: true });
+      return;
+    }
+
+    const sessions = await this.orchestrator.discoverAll();
+    if (sessions.length === 0) {
+      await interaction.reply({ content: 'No sources found.', ephemeral: true });
+      return;
+    }
+    if (sessions.length === 1) {
+      await interaction.reply({ content: 'Only one source available — nothing to switch to.', ephemeral: true });
+      return;
+    }
+
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('switch_source_select')
+      .setPlaceholder('Pick a source')
+      .addOptions(
+        sessions.map((s) => ({
+          label: s.state.title.length > 100 ? s.state.title.slice(0, 97) + '...' : s.state.title,
+          description: `${s.state.source} — ${s.state.paused ? 'Paused' : 'Playing'}`.slice(0, 100),
+          value: s.sessionId,
+        }))
+      );
+
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);
+    const reply = await interaction.reply({ content: 'Select a source:', components: [row], ephemeral: true });
+    const msg = reply instanceof Message ? reply : await interaction.fetchReply();
+
+    try {
+      const collected = await msg.awaitMessageComponent({
+        componentType: ComponentType.StringSelect,
+        time: 30_000,
+      }) as StringSelectMenuInteraction;
+
+      this.orchestrator.setActiveSession(collected.values[0]);
+      await collected.update({ content: `Source switched to **${collected.values[0]}**.`, components: [] });
+      await this.logAction(interaction, '🔀 switched source');
+      await this.refreshEmbed();
+    } catch {
+      await interaction.editReply({ content: 'Selection timed out.', components: [] });
+    }
   }
 
   private async handleSelectMenu(_interaction: StringSelectMenuInteraction): Promise<void> {
