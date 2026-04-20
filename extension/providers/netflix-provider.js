@@ -1,7 +1,8 @@
 /**
- * Netflix video provider.
- * Netflix's video element is locked behind their internal API, so we inject
- * a page script that communicates with it via postMessage.
+ * Netflix video provider (content script world).
+ * Netflix's video element is locked behind their internal cadmium API,
+ * which is accessed by netflix-cadmium.js running in the MAIN world.
+ * This provider communicates with it via window.postMessage.
  *
  * Netflix API uses MILLISECONDS — conversion to/from seconds happens here.
  */
@@ -12,7 +13,6 @@ class NetflixProvider extends BaseVideoProvider {
     this._pending = new Map();
     /** @type {string|null} Last successfully scraped title (survives overlay hide) */
     this._lastTitle = null;
-    this._injectPageScript();
     this._listenForResponses();
   }
 
@@ -49,18 +49,6 @@ class NetflixProvider extends BaseVideoProvider {
    */
   _generateId() {
     return 'wp_' + Math.random().toString(36).slice(2) + '_' + Date.now();
-  }
-
-  /**
-   * Injects a <script> tag into the page context so it can access
-   * netflix.appContext (not available in the content script sandbox).
-   * Uses script.src instead of inline code to comply with Netflix's CSP.
-   */
-  _injectPageScript() {
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('netflix-page-script.js');
-    (document.head || document.documentElement).appendChild(script);
-    script.onload = () => script.remove();
   }
 
   /**

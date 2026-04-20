@@ -1,9 +1,10 @@
 /**
- * Netflix page-world script.
- * Runs in the main page context (not content script sandbox) to access
- * netflix.appContext and the cadmium video player API.
+ * Netflix cadmium API bridge (runs in MAIN world via manifest.json).
  *
- * Communicates with the content script via window.postMessage.
+ * This script executes in the page's main context — NOT the content script
+ * sandbox — so it can access netflix.appContext and the cadmium video player.
+ *
+ * Communicates with netflix-provider.js (content world) via window.postMessage.
  */
 (function() {
   function getPlayer() {
