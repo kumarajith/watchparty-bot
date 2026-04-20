@@ -23,4 +23,5 @@ export const config = {
     password: process.env['VLC_PASSWORD'] || '',
   },
   actionLogEnabled: optional('ACTION_LOG_ENABLED', 'true') === 'true',
+  streamerUserId: process.env['STREAMER_USER_ID'] || null,
 } as const;

@@ -82,8 +82,8 @@ export function buildButtonRow(): ActionRowBuilder<ButtonBuilder> {
       .setLabel('10s ⏩')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('refresh')
-      .setLabel('🔄')
-      .setStyle(ButtonStyle.Secondary),
+      .setCustomId('end_session')
+      .setLabel('🛑 End')
+      .setStyle(ButtonStyle.Danger),
   );
 }

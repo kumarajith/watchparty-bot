@@ -83,6 +83,11 @@ export class DiscordBot {
   // ── Slash Commands ──────────────────────────────────────────────
 
   private async cmdGoLive(interaction: ChatInputCommandInteraction): Promise<void> {
+    if (config.streamerUserId && interaction.user.id !== config.streamerUserId) {
+      await interaction.reply({ content: 'You are not allowed to start a session.', ephemeral: true });
+      return;
+    }
+
     if (this.session) {
       await interaction.reply({ content: 'A session is already active. Use `/end` first.', ephemeral: true });
       return;
@@ -90,12 +95,43 @@ export class DiscordBot {
 
     await interaction.deferReply();
 
+    // If multiple sources, let the user pick one first
+    const sessions = await this.orchestrator.discoverAll();
+    if (sessions.length > 1) {
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId('golive_source_select')
+        .setPlaceholder('Pick a source to stream')
+        .addOptions(
+          sessions.map((s) => ({
+            label: s.state.title.length > 100 ? s.state.title.slice(0, 97) + '...' : s.state.title,
+            description: `${s.state.source} — ${s.state.paused ? 'Paused' : 'Playing'}`.slice(0, 100),
+            value: s.sessionId,
+          }))
+        );
+
+      const menuRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);
+      const reply = await interaction.editReply({ content: 'Multiple sources found. Pick one:', components: [menuRow] });
+
+      try {
+        const collected = await reply.awaitMessageComponent({
+          componentType: ComponentType.StringSelect,
+          time: 30_000,
+        }) as StringSelectMenuInteraction;
+
+        this.orchestrator.setActiveSession(collected.values[0]);
+        await collected.deferUpdate();
+      } catch {
+        await interaction.editReply({ content: 'Selection timed out. Use `/go-live` again.', components: [] });
+        return;
+      }
+    }
+
     const state = await this.orchestrator.getActiveState();
     const startedAt = new Date();
     const embed = buildNowPlayingEmbed(state, interaction.user, startedAt);
     const row = buildButtonRow();
 
-    const reply = await interaction.editReply({ embeds: [embed], components: [row] });
+    const reply = await interaction.editReply({ embeds: [embed], components: [row], content: '' });
 
     this.session = {
       channelId: interaction.channelId,
@@ -213,8 +249,8 @@ export class DiscordBot {
       .setPlaceholder('Pick a source')
       .addOptions(
         sessions.map((s) => ({
-          label: `${s.state.title}`,
-          description: `${s.state.source} — ${s.state.paused ? 'Paused' : 'Playing'}`,
+          label: s.state.title.length > 100 ? s.state.title.slice(0, 97) + '...' : s.state.title,
+          description: `${s.state.source} — ${s.state.paused ? 'Paused' : 'Playing'}`.slice(0, 100),
           value: s.sessionId,
         }))
       );
@@ -268,9 +304,18 @@ export class DiscordBot {
           await this.orchestrator.seekRelative(10);
           await this.logAction(interaction, '⏩ skipped forward 10s');
           break;
-        case 'refresh':
-          await this.logAction(interaction, '🔄 refreshed');
-          break;
+        case 'end_session':
+          await this.logAction(interaction, '🛑 ended the session');
+          this.stopRefreshInterval();
+          try {
+            const channel = await this.client.channels.fetch(this.session!.channelId) as TextChannel;
+            const msg = await channel.messages.fetch(this.session!.messageId);
+            await msg.edit({ components: [] });
+          } catch {
+            // Embed might already be deleted
+          }
+          this.session = null;
+          return;
       }
     } catch (err) {
       console.error('[Discord] Button handler error:', (err as Error).message);
