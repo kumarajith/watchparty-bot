@@ -1,0 +1,26 @@
+{
+  "name": "watchparty-bot",
+  "version": "1.0.0",
+  "description": "Movie Night Discord Bot - control video playback across Netflix, Hotstar, Prime Video, and VLC from Discord",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "tsx --env-file=.env src/index.ts",
+    "build": "tsup",
+    "start": "node --env-file=.env dist/index.js",
+    "deploy-commands": "tsx --env-file=.env src/discord/deploy-commands.ts"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
